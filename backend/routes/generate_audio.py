@@ -1,28 +1,29 @@
 import os
 import requests
-from flask import Blueprint,request,jsonify
+from flask import Blueprint, request, jsonify
 from uuid import uuid4
 from config.s3_config import s3
 from werkzeug.utils import secure_filename
 
+generate_audio_blueprint = Blueprint('generate_audio', __name__)
 
-generate_audio_blueprint=Blueprint('generate_audio',__name__)
-ELEVENLABS_API_KEY=os.getenv("ELEVENLABS_API_KEY")
-S3_BUCKET_NAME=os.getenv("S3_BUCKET_NAME")
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
-@generate_audio_blueprint.route("/generateaudio",methods=['POST'])
-
+@generate_audio_blueprint.route("/generateaudio", methods=["POST"])
 def generateaudio():
-    script=request.json.get("script")
+    script = request.json.get("script")
+    session_id = request.json.get("session_id")
 
     if not script:
-        return jsonify({"error":"No script Provided"}),400
-    
-    session_id = request.json.get("session_id")
+        return jsonify({"error": "No script provided"}), 400
     if not session_id:
         return jsonify({"error": "Missing session_id"}), 400
-    s3_key=f"voice/{secure_filename(session_id)}.mp3"
-    eleven_url= "https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL"
+
+    s3_key = f"voice/{secure_filename(session_id)}.mp3"
+    temp_path = f"/tmp/{session_id}.mp3"
+
+    eleven_url = "https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL/stream"
     headers = {
         "xi-api-key": ELEVENLABS_API_KEY,
         "Content-Type": "application/json"
@@ -36,16 +37,23 @@ def generateaudio():
     }
 
     try:
-        response = requests.post(eleven_url, headers=headers, json=payload,stream=True)
+        response = requests.post(eleven_url, headers=headers, json=payload, stream=True)
         response.raise_for_status()
+
+        with open(temp_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
+
     except Exception as e:
         return jsonify({"error": f"Voice generation failed: {str(e)}"}), 500
 
-    # Step 5: Upload to S3
     try:
-        s3.upload_fileobj(response.raw, S3_BUCKET_NAME, s3_key)
+        with open(temp_path, "rb") as f:
+            s3.upload_fileobj(f, S3_BUCKET_NAME, s3_key)
+
         audio_url = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{s3_key}"
+        return jsonify({"audio_url": audio_url, "session_id": session_id}), 200
+
     except Exception as e:
         return jsonify({"error": f"S3 upload failed: {str(e)}"}), 500
-
-    return jsonify({"audio_url": audio_url, "session_id": session_id}), 200
