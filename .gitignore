@@ -1,0 +1,30 @@
+# Node
+node_modules/
+dist/
+.build/
+.next/
+out/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+env/
+*.egg-info/
+instance/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.*
+
+# S3 or media
+assets/uploads/
+tmp/
