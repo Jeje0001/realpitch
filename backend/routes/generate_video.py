@@ -63,17 +63,24 @@ def generate_video():
             try:
                 response = requests.get(url, timeout=10)
                 response.raise_for_status()
+                image = Image.open(BytesIO(response.content))
+                image.verify()
+                image = Image.open(BytesIO(response.content)).convert("RGB")
 
-                img = Image.open(BytesIO(response.content))
-                img.verify()  # Confirm it's a valid image
-                img = Image.open(BytesIO(response.content))  # Reopen for saving
+                # Ensure dimensions are even
+                width, height = image.size
+                new_width = width + (width % 2)
+                new_height = height + (height % 2)
+                if new_width != width or new_height != height:
+                    padded = Image.new("RGB", (new_width, new_height), (0, 0, 0))
+                    padded.paste(image, (0, 0))
+                    image = padded
 
-                image_path = os.path.join(temp_dir, f"frame_{len(frame_paths):03}.jpg")
-                img.convert("RGB").save(image_path, "JPEG")
+                image_path = os.path.join(temp_dir, f"frame_{i:03}.jpg")
+                image.save(image_path, "JPEG")
                 frame_paths.append(image_path)
                 print(f"✅ Frame saved: {image_path}")
                 log_memory(f"after image {i}")
-
             except (requests.RequestException, UnidentifiedImageError, OSError) as e:
                 print(f"❌ Skipping invalid image {i}: {url} | Reason: {e}")
                 skipped_images.append(url)
@@ -81,7 +88,6 @@ def generate_video():
         if not frame_paths:
             return jsonify({"error": "All images failed or were invalid."}), 400
 
-        # Download audio
         try:
             audio_path = os.path.join(temp_dir, "audio.mp3")
             audio_response = requests.get(audio_url, timeout=10)
@@ -101,7 +107,6 @@ def generate_video():
         frame_rate = len(frame_paths) / audio_duration
         print(f"🎞️ Frame rate calculated: {frame_rate:.2f} fps")
 
-        # Generate video from images
         try:
             video_path = os.path.join(temp_dir, "video.mp4")
             ffmpeg_cmd = [
@@ -121,7 +126,6 @@ def generate_video():
             print("❌ FFmpeg failed:", str(e))
             return jsonify({"error": "Video generation failed"}), 500
 
-        # Combine video + audio
         try:
             final_path = os.path.join(temp_dir, f"{session_id}_final.mp4")
             ffmpeg_cmd = [
@@ -142,7 +146,6 @@ def generate_video():
             print("❌ Failed to combine video and audio:", str(e))
             return jsonify({"error": "Failed to combine video and audio"}), 500
 
-        # Upload to S3
         try:
             import boto3
             s3 = boto3.client("s3")
