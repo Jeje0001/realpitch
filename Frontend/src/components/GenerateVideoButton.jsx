@@ -36,7 +36,7 @@ export default function GenerateVideoButton(props) {
 
     try {
       const response = await axios.post(
-        "https://realpitch009.vercel.app/upload",
+        "https://realpitch-1.onrender.com/upload",
         formData,
         {
           headers: {
@@ -57,7 +57,7 @@ export default function GenerateVideoButton(props) {
 
     let scriptRes;
     try {
-      scriptRes = await axios.post("https://realpitch009.vercel.app/generatescript", {
+      scriptRes = await axios.post("https://realpitch-1.onrender.com/generatescript", {
         description,
         session_id: sessionId,
       });
@@ -73,7 +73,7 @@ export default function GenerateVideoButton(props) {
 
     let voiceRes;
     try {
-      voiceRes = await axios.post("https://realpitch009.vercel.app/generateaudio", {
+      voiceRes = await axios.post("https://realpitch-1.onrender.com/generateaudio", {
         script: scriptRes.data.script,
         session_id: sessionId,
       });
@@ -88,7 +88,7 @@ export default function GenerateVideoButton(props) {
     setLoadingStep("Rendering video");
 
     try {
-      const videoRes = await axios.post("https://realpitch009.vercel.app/generatevideo", {
+      const videoRes = await axios.post("https://realpitch-1.onrender.com/generatevideo", {
         image_urls: uploadedUrls,
         script: scriptRes.data.script,
         audio_url: voiceRes.data.audio_url,
