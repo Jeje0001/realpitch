@@ -27,7 +27,6 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Hero Section */}
       <div className="bg-gradient-to-br from-blue-100 to-white py-20 px-4 text-center">
         <h1 className="text-5xl font-extrabold text-gray-900 mb-4">
           Create Stunning Real Estate Videos with AI
@@ -43,7 +42,6 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* How It Works */}
       <div className="max-w-6xl mx-auto mt-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-6">
         {steps.map((step, index) => (
           <div
@@ -57,15 +55,7 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Recent Projects Placeholder */}
-      {/* <div className="max-w-4xl mx-auto mt-20 px-6">
-        <h2 className="text-2xl font-bold mb-4">Your Recent Projects</h2>
-        <div className="border-2 border-dashed border-gray-300 rounded-xl py-12 text-center text-gray-500">
-          You haven’t created any videos yet. Click “Create My First Video”
-          above to get started.
-        </div>
-      </div> */}
-      {/* Recent Projects Section */}
+     
         <div className="max-w-4xl mx-auto mt-20 px-6">
         <h2 className="text-2xl font-bold mb-4">Your Recent Projects</h2>
         <RecentProjects sessionId={sessionStorage.getItem("session_id")} />
@@ -73,10 +63,7 @@ export default function HomePage() {
 
 
 
-      {/* Footer */}
-      <footer className="mt-24 py-6 text-center bg-gray-100 text-sm text-gray-500">
-        Powered by GPT-4, ElevenLabs, FFmpeg, and AWS S3
-      </footer>
+      
     </>
   );
 }
