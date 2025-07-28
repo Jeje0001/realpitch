@@ -3,11 +3,13 @@ from flask import Blueprint, request
 from config.s3_config import s3
 from uuid import uuid4
 from werkzeug.utils import secure_filename
+from flask_cors import CORS
 
 upload_blueprint = Blueprint('upload', __name__)
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "mp4", "mov", "webm", "gif"}
+CORS(upload_blueprint, origins=["http://localhost:5173"])
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

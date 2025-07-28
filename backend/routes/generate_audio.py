@@ -4,8 +4,10 @@ from flask import Blueprint, request, jsonify
 from uuid import uuid4
 from config.s3_config import s3
 from werkzeug.utils import secure_filename
+from flask_cors import CORS
 
 generate_audio_blueprint = Blueprint('generate_audio', __name__)
+CORS(generate_audio_blueprint, origins=["http://localhost:5173"])
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
@@ -38,7 +40,16 @@ def generateaudio():
 
     try:
         response = requests.post(eleven_url, headers=headers, json=payload, stream=True)
-        response.raise_for_status()
+        content_type = response.headers.get("Content-Type", "")
+        print(f"🎧 Audio Content-Type: {content_type}")
+
+        if "audio/mpeg" not in content_type:
+            print("🔴 ElevenLabs Error Response:", response.text)
+            return jsonify({
+                "error": "Voice generation failed",
+                "status_code": response.status_code,
+                "details": response.text
+            }), 500
 
         with open(temp_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=1024):
@@ -46,6 +57,7 @@ def generateaudio():
                     f.write(chunk)
 
     except Exception as e:
+        print("🔥 Unexpected Exception during ElevenLabs call:", str(e))
         return jsonify({"error": f"Voice generation failed: {str(e)}"}), 500
 
     try:
@@ -56,4 +68,5 @@ def generateaudio():
         return jsonify({"audio_url": audio_url, "session_id": session_id}), 200
 
     except Exception as e:
+        print("🪣 S3 Upload Error:", str(e))
         return jsonify({"error": f"S3 upload failed: {str(e)}"}), 500

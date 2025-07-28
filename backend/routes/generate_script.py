@@ -1,9 +1,11 @@
 import os
 from flask import Blueprint, request, jsonify
 from openai import OpenAI
+from flask_cors import CORS
 
 generate_script_blueprint = Blueprint('generate_script', __name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+CORS(generate_script_blueprint, origins=["http://localhost:5173"])
 
 @generate_script_blueprint.route("/generatescript", methods=['POST'])
 def generatescript():
