@@ -88,12 +88,16 @@ export default function GenerateVideoButton(props) {
     setLoadingStep("Rendering video");
 
     try {
+      console.log("Sending request to generate video...");
+
       const videoRes = await axios.post("https://realpitch-1.onrender.com/generatevideo", {
         image_urls: uploadedUrls,
         script: scriptRes.data.script,
         audio_url: voiceRes.data.audio_url,
         session_id: sessionId,
       });
+      console.log("✅ Video response:", videoRes.data);
+
 
       const videoUrl = videoRes.data.video_url;
       setVideoUrl(videoUrl);
@@ -110,6 +114,16 @@ export default function GenerateVideoButton(props) {
       const updated = [newEntry, ...existing].slice(0, 10);
       localStorage.setItem("recentProjects", JSON.stringify(updated));
     } catch (error) {
+        console.error("❌ Video generation failed:", error);
+        if (error.response) {
+          console.log("Status:", error.response.status);
+          console.log("Data:", error.response.data);
+          console.log("Headers:", error.response.headers);
+        } else if (error.request) {
+          console.log("No response received:", error.request);
+        } else {
+          console.log("Error setting up request:", error.message);
+        }
       alert("Video rendering failed.");
       console.error(error);
     }

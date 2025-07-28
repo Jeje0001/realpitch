@@ -1,7 +1,7 @@
 import os
 import requests
 import subprocess
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify,cross_origin
 from uuid import uuid4
 from config.s3_config import s3
 from PIL import Image
@@ -12,15 +12,23 @@ from flask_cors import CORS
 
 generate_video_blueprint = Blueprint("generate_video", __name__)
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-# CORS(generate_video_blueprint,origins=["http://localhost:5173","https://realpitch-1.onrender.com","https://realpitch009.vercel.app"])
+CORS(generate_video_blueprint,origins=["http://localhost:5173","https://realpitch-1.onrender.com","https://realpitch009.vercel.app"])
+@cross_origin(origins="https://realpitch009.vercel.app")  # Explicitly allow your frontend
+
 @generate_video_blueprint.route("/generatevideo", methods=["POST"])
 def generatevideo():
+    print("🔔 generatevideo endpoint hit")
+
     try:
         data = request.get_json()
+        print("✅ JSON parsed:", data)
+
         image_urls = data.get("image_urls")
         audio_url = data.get("audio_url")
         session_id = data.get("session_id")
-
+        print("🖼️ image_urls:", image_urls)
+        print("🔊 audio_url:", audio_url)
+        print("📦 session_id:", session_id)
         if not image_urls or not audio_url or not session_id:
             return jsonify({"error": "Missing required fields"}), 400
 
@@ -96,4 +104,6 @@ def generatevideo():
             "stderr": e.stderr if isinstance(e.stderr, str) else str(e)
         }), 500
     except Exception as e:
+        print("❌ Failed to parse JSON:", str(e))
+
         return jsonify({"error": str(e)}), 500
