@@ -1,13 +1,13 @@
 import os
 import requests
 import subprocess
-from flask import Blueprint, request, jsonify,cross_origin
+from flask import Blueprint, request, jsonify
 from uuid import uuid4
 from config.s3_config import s3
 from PIL import Image
 from io import BytesIO
 import ffmpeg 
-from flask_cors import CORS
+from flask_cors import CORS,cross_origin
 
 
 generate_video_blueprint = Blueprint("generate_video", __name__)
