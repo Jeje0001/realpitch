@@ -1,3 +1,4 @@
+
 import os
 import requests
 import subprocess
@@ -5,10 +6,12 @@ import tempfile
 import shutil
 import psutil
 import ffmpeg
+from io import BytesIO
+from PIL import Image, UnidentifiedImageError
 from flask import Blueprint, request, jsonify
 from uuid import uuid4
-from werkzeug.utils import secure_filename
 from flask_cors import CORS, cross_origin
+from werkzeug.utils import secure_filename
 
 generate_video_blueprint = Blueprint("generate_video", __name__)
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
@@ -29,7 +32,7 @@ def get_audio_duration(audio_path):
         return duration
     except Exception as e:
         print("❌ Failed to get audio duration:", str(e))
-        return 6.0  # fallback default duration
+        return 6.0
 
 @generate_video_blueprint.route("/generatevideo", methods=["POST"])
 @cross_origin(origins="https://realpitch009.vercel.app")
@@ -62,19 +65,36 @@ def generate_video():
         print("📁 Temp dir created:", temp_dir)
 
         frame_paths = []
+        skipped_images = []
+
         for i, url in enumerate(image_urls):
             try:
                 response = requests.get(url, timeout=10)
-                image_path = os.path.join(temp_dir, f"frame_{i:03}.jpg")
-                with open(image_path, "wb") as f:
-                    f.write(response.content)
-                frame_paths.append(image_path)
-                print(f"✅ Frame {i} saved: {image_path}")
-                log_memory(f"after image {i}")
-            except Exception as e:
-                print(f"❌ Failed to download image {i}:", str(e))
+                response.raise_for_status()
 
-        # Download audio
+                img = Image.open(BytesIO(response.content))
+                img.verify()  # Validate
+                img = Image.open(BytesIO(response.content))  # Reopen for manipulation
+
+                if img.width < 10 or img.height < 10:
+                    raise ValueError(f"Image too small: {img.width}x{img.height}")
+
+                # Resize for consistency
+                img = img.convert("RGB").resize((1280, 720))
+
+                image_path = os.path.join(temp_dir, f"frame_{len(frame_paths):03}.jpg")
+                img.save(image_path, "JPEG")
+                frame_paths.append(image_path)
+                print(f"✅ Frame saved: {image_path}")
+                log_memory(f"after image {i}")
+
+            except (requests.RequestException, UnidentifiedImageError, ValueError, OSError) as e:
+                print(f"❌ Skipping invalid image {i}: {url} | Reason: {e}")
+                skipped_images.append(url)
+
+        if not frame_paths:
+            return jsonify({"error": "All images failed or were invalid."}), 400
+
         try:
             audio_path = os.path.join(temp_dir, "audio.mp3")
             audio_response = requests.get(audio_url, timeout=10)
@@ -86,7 +106,6 @@ def generate_video():
             print("❌ Failed to download audio:", str(e))
             return jsonify({"error": "Audio download failed"}), 500
 
-        # Get audio duration and calculate frame rate
         audio_duration = get_audio_duration(audio_path)
         if audio_duration <= 0:
             print("❌ Invalid audio duration")
@@ -95,7 +114,6 @@ def generate_video():
         frame_rate = len(frame_paths) / audio_duration
         print(f"🎞️ Frame rate calculated: {frame_rate:.2f} fps")
 
-        # Generate video from images
         try:
             video_path = os.path.join(temp_dir, "video.mp4")
             ffmpeg_cmd = [
@@ -115,7 +133,6 @@ def generate_video():
             print("❌ FFmpeg failed:", str(e))
             return jsonify({"error": "Video generation failed"}), 500
 
-        # Combine video + audio
         try:
             final_path = os.path.join(temp_dir, f"{session_id}_final.mp4")
             ffmpeg_cmd = [
@@ -136,7 +153,6 @@ def generate_video():
             print("❌ Failed to combine video and audio:", str(e))
             return jsonify({"error": "Failed to combine video and audio"}), 500
 
-        # Upload to S3
         try:
             import boto3
             s3 = boto3.client("s3")
@@ -149,7 +165,14 @@ def generate_video():
             print("❌ S3 upload failed:", str(e))
             return jsonify({"error": "S3 upload failed"}), 500
 
-        return jsonify({"video_url": s3_url}), 200
+        response = {
+            "video_url": s3_url,
+            "audio_url": audio_url
+        }
+        if skipped_images:
+            response["warning"] = f"{len(skipped_images)} image(s) were skipped due to errors."
+
+        return jsonify(response), 200
 
     finally:
         try:
