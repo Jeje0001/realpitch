@@ -8,7 +8,8 @@ from flask_cors import CORS
 from dotenv import  *
 
 app=Flask(__name__)
-CORS(app, origins=["https://realpitch009.vercel.app", "http://localhost:5173"])
+CORS(app,origins=["http://localhost:5173","https://realpitch-1.onrender.com","https://realpitch009.vercel.app"])
+
 @app.route("/")
 
 def home():
