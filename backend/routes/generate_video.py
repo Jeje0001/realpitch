@@ -12,7 +12,6 @@ from flask_cors import CORS
 
 generate_video_blueprint = Blueprint("generate_video", __name__)
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-CORS(generate_video_blueprint, origins=["http://localhost:5173","https://realpitch-1.onrender.com"])
 
 @generate_video_blueprint.route("/generatevideo", methods=["POST"])
 def generatevideo():
