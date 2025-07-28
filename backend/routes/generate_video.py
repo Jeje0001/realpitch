@@ -1,4 +1,3 @@
-
 import os
 import requests
 import subprocess
@@ -6,6 +5,8 @@ import tempfile
 import shutil
 import psutil
 import ffmpeg
+from io import BytesIO
+from PIL import Image, UnidentifiedImageError
 from flask import Blueprint, request, jsonify
 from uuid import uuid4
 from werkzeug.utils import secure_filename
@@ -25,7 +26,7 @@ def get_audio_duration(audio_path):
         return duration
     except Exception as e:
         print("❌ Failed to get audio duration:", str(e))
-        return 6.0  # fallback default duration
+        return 6.0
 
 @generate_video_blueprint.route("/generatevideo", methods=["POST"])
 def generate_video():
@@ -56,17 +57,29 @@ def generate_video():
         print("📁 Temp dir created:", temp_dir)
 
         frame_paths = []
+        skipped_images = []
+
         for i, url in enumerate(image_urls):
             try:
                 response = requests.get(url, timeout=10)
-                image_path = os.path.join(temp_dir, f"frame_{i:03}.jpg")
-                with open(image_path, "wb") as f:
-                    f.write(response.content)
+                response.raise_for_status()
+
+                img = Image.open(BytesIO(response.content))
+                img.verify()  # Confirm it's a valid image
+                img = Image.open(BytesIO(response.content))  # Reopen for saving
+
+                image_path = os.path.join(temp_dir, f"frame_{len(frame_paths):03}.jpg")
+                img.convert("RGB").save(image_path, "JPEG")
                 frame_paths.append(image_path)
-                print(f"✅ Frame {i} saved: {image_path}")
+                print(f"✅ Frame saved: {image_path}")
                 log_memory(f"after image {i}")
-            except Exception as e:
-                print(f"❌ Failed to download image {i}:", str(e))
+
+            except (requests.RequestException, UnidentifiedImageError, OSError) as e:
+                print(f"❌ Skipping invalid image {i}: {url} | Reason: {e}")
+                skipped_images.append(url)
+
+        if not frame_paths:
+            return jsonify({"error": "All images failed or were invalid."}), 400
 
         # Download audio
         try:
@@ -80,7 +93,6 @@ def generate_video():
             print("❌ Failed to download audio:", str(e))
             return jsonify({"error": "Audio download failed"}), 500
 
-        # Get audio duration and calculate frame rate
         audio_duration = get_audio_duration(audio_path)
         if audio_duration <= 0:
             print("❌ Invalid audio duration")
@@ -143,7 +155,14 @@ def generate_video():
             print("❌ S3 upload failed:", str(e))
             return jsonify({"error": "S3 upload failed"}), 500
 
-        return jsonify({"video_url": s3_url}), 200
+        response = {
+            "video_url": s3_url,
+            "audio_url": audio_url
+        }
+        if skipped_images:
+            response["warning"] = f"{len(skipped_images)} image(s) were skipped due to invalid format."
+
+        return jsonify(response), 200
 
     finally:
         try:
