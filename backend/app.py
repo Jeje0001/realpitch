@@ -6,9 +6,9 @@ from routes.generate_audio import generate_audio_blueprint
 from routes.generate_video import generate_video_blueprint
 from flask_cors import CORS
 from dotenv import  *
-
+load_dotenv()
 app=Flask(__name__)
-CORS(app,origins=["http://localhost:5173","https://realpitch-1.onrender.com","https://realpitch009.vercel.app"])
+CORS(app,origins="*")
 
 @app.route("/")
 
