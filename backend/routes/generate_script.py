@@ -5,7 +5,7 @@ from flask_cors import CORS
 
 generate_script_blueprint = Blueprint('generate_script', __name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-CORS(generate_script_blueprint, origins=["http://localhost:5173","https://realpitch-1.onrender.com"])
+CORS(generate_script_blueprint, origins=["http://localhost:5173","https://realpitch-1.onrender.com","https://realpitch009.vercel.app"])
 
 @generate_script_blueprint.route("/generatescript", methods=['POST'])
 def generatescript():
