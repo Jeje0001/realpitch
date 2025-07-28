@@ -9,7 +9,7 @@ upload_blueprint = Blueprint('upload', __name__)
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "mp4", "mov", "webm", "gif"}
-CORS(upload_blueprint, origins=["http://localhost:5173"])
+CORS(upload_blueprint, origins=["http://localhost:5173","https://realpitch-1.onrender.com"])
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 from flask_cors import CORS
 
 generate_audio_blueprint = Blueprint('generate_audio', __name__)
-CORS(generate_audio_blueprint, origins=["http://localhost:5173"])
+CORS(generate_audio_blueprint, origins=["http://localhost:5173","https://realpitch-1.onrender.com"])
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
