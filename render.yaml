@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: realpitch-backend
+    env: python
+    buildCommand: |
+      apt-get update && apt-get install -y ffmpeg
+      pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: ENV
+        value: production
+    buildFilter:
+      paths:
+        - backend/**
