@@ -128,6 +128,31 @@ CORS(generate_video_blueprint, origins=[
 #             "details": str(e)
 #         }), 500
 
+# @generate_video_blueprint.route("/generatevideo", methods=["POST"])
+# @cross_origin(origins="https://realpitch009.vercel.app")
+# def generatevideo():
+#     print("🔔 /generatevideo endpoint hit")
+
+#     try:
+#         data = request.get_json()
+#         print("✅ JSON parsed:", data)
+
+#         image_urls = data.get("image_urls")
+#         audio_url = data.get("audio_url")
+#         session_id = data.get("session_id")
+#         print("🖼 image_urls:", image_urls)
+#         print("🔊 audio_url:", audio_url)
+#         print("📦 session_id:", session_id)
+
+#         # 🔍 Add a test GET request to audio_url only
+#         audio_data = requests.get(audio_url)
+#         print("🎧 Audio download test status:", audio_data.status_code)
+
+#         return jsonify({"message": "Audio downloaded OK"}), 200
+
+#     except Exception as e:
+#         print("❌ Test failed:", str(e))
+#         return jsonify({"error": str(e)}), 500
 @generate_video_blueprint.route("/generatevideo", methods=["POST"])
 @cross_origin(origins="https://realpitch009.vercel.app")
 def generatevideo():
@@ -144,12 +169,21 @@ def generatevideo():
         print("🔊 audio_url:", audio_url)
         print("📦 session_id:", session_id)
 
-        # 🔍 Add a test GET request to audio_url only
-        audio_data = requests.get(audio_url)
-        print("🎧 Audio download test status:", audio_data.status_code)
+        tmpfolderpath = os.path.join("/tmp", session_id)
+        os.makedirs(tmpfolderpath, exist_ok=True)
 
-        return jsonify({"message": "Audio downloaded OK"}), 200
+        audio_path = os.path.join(tmpfolderpath, "audio.mp3")
+        audio_data = requests.get(audio_url)
+        with open(audio_path, "wb") as f:
+            f.write(audio_data.content)
+        print("✅ Audio saved at:", audio_path)
+
+        # ✅ Now test ffmpeg probe
+        probe = ffmpeg.probe(audio_path)
+        print("🎯 Audio duration:", probe['format']['duration'])
+
+        return jsonify({"message": "Audio probe succeeded!"}), 200
 
     except Exception as e:
-        print("❌ Test failed:", str(e))
+        print("❌ Probe test failed:", str(e))
         return jsonify({"error": str(e)}), 500
