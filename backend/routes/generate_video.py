@@ -153,6 +153,40 @@ CORS(generate_video_blueprint, origins=[
 #     except Exception as e:
 #         print("❌ Test failed:", str(e))
 #         return jsonify({"error": str(e)}), 500
+# @generate_video_blueprint.route("/generatevideo", methods=["POST"])
+# @cross_origin(origins="https://realpitch009.vercel.app")
+# def generatevideo():
+#     print("🔔 /generatevideo endpoint hit")
+
+#     try:
+#         data = request.get_json()
+#         print("✅ JSON parsed:", data)
+
+#         image_urls = data.get("image_urls")
+#         audio_url = data.get("audio_url")
+#         session_id = data.get("session_id")
+#         print("🖼 image_urls:", image_urls)
+#         print("🔊 audio_url:", audio_url)
+#         print("📦 session_id:", session_id)
+
+#         tmpfolderpath = os.path.join("/tmp", session_id)
+#         os.makedirs(tmpfolderpath, exist_ok=True)
+
+#         audio_path = os.path.join(tmpfolderpath, "audio.mp3")
+#         audio_data = requests.get(audio_url)
+#         with open(audio_path, "wb") as f:
+#             f.write(audio_data.content)
+#         print("✅ Audio saved at:", audio_path)
+
+#         # ✅ Now test ffmpeg probe
+#         probe = ffmpeg.probe(audio_path)
+#         print("🎯 Audio duration:", probe['format']['duration'])
+
+#         return jsonify({"message": "Audio probe succeeded!"}), 200
+
+#     except Exception as e:
+#         print("❌ Probe test failed:", str(e))
+#         return jsonify({"error": str(e)}), 500
 @generate_video_blueprint.route("/generatevideo", methods=["POST"])
 @cross_origin(origins="https://realpitch009.vercel.app")
 def generatevideo():
@@ -172,18 +206,40 @@ def generatevideo():
         tmpfolderpath = os.path.join("/tmp", session_id)
         os.makedirs(tmpfolderpath, exist_ok=True)
 
+        # Save audio
         audio_path = os.path.join(tmpfolderpath, "audio.mp3")
         audio_data = requests.get(audio_url)
         with open(audio_path, "wb") as f:
             f.write(audio_data.content)
-        print("✅ Audio saved at:", audio_path)
 
-        # ✅ Now test ffmpeg probe
+        # FFmpeg probe
         probe = ffmpeg.probe(audio_path)
-        print("🎯 Audio duration:", probe['format']['duration'])
+        audio_duration = float(probe['format']['duration'])
+        print("🎯 Audio duration:", audio_duration)
 
-        return jsonify({"message": "Audio probe succeeded!"}), 200
+        # ✅ Now test downloading & saving image frames
+        frame_paths = []
+        for i, url in enumerate(image_urls):
+            print(f"📥 Downloading image {i}: {url}")
+            response = requests.get(url)
+            temp_path = os.path.join(tmpfolderpath, f"raw_{i:03d}")
+            with open(temp_path, "wb") as f:
+                f.write(response.content)
+
+            try:
+                with Image.open(temp_path) as im:
+                    frame_path = os.path.join(tmpfolderpath, f"frame_{i:03d}.jpg")
+                    rgb_im = im.convert("RGB")
+                    rgb_im.save(frame_path, "JPEG")
+                    frame_paths.append(frame_path)
+                    print(f"✅ Frame {i} saved:", frame_path)
+            except Exception as e:
+                print(f"⚠️ Skipping invalid image {i}: {e}")
+
+        print("📸 Total frames created:", len(frame_paths))
+
+        return jsonify({"message": "Image processing succeeded!"}), 200
 
     except Exception as e:
-        print("❌ Probe test failed:", str(e))
+        print("❌ Image test failed:", str(e))
         return jsonify({"error": str(e)}), 500
