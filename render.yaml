@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: realpitch-backend
+    env: docker
+    repo: https://github.com/Jeje0001/realpitch
+    branch: main
+    dockerfilePath: backend/Dockerfile
+    buildFilter:
+      paths:
+        - backend/**
