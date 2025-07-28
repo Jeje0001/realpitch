@@ -116,19 +116,45 @@ def generate_video():
 
         try:
             video_path = os.path.join(temp_dir, "video.mp4")
-            ffmpeg_cmd = [
-                "ffmpeg",
-                "-y",
-                "-framerate", str(frame_rate),
-                "-i", os.path.join(temp_dir, "frame_%03d.jpg"),
+            transition_duration = 1  # 1 second crossfade
+            num_images = len(frame_paths)
+            display_time = max((audio_duration - transition_duration * (num_images - 1)) / num_images, 1.0)
+
+            filter_lines = []
+            input_args = []
+            for i, img_path in enumerate(frame_paths):
+                input_args.extend(["-loop", "1", "-t", str(display_time + transition_duration), "-i", img_path])
+                zoom_direction = "in" if i % 2 == 0 else "out"
+                z_expr = "zoom+0.001" if zoom_direction == "in" else "zoom-0.001"
+                filter_lines.append(
+                    f"[{i}:v]scale=1280:720,zoompan=z='{z_expr}':d=1:x='iw/2':y='ih/2':s=1280x720:fps=25,format=yuv420p[v{i}]"
+                )
+
+            # Apply crossfades
+            xfade_chain = f"[v0][v1]xfade=transition=fade:duration={transition_duration}:offset={display_time}[v01]"
+            for i in range(2, num_images):
+                tag_in = f"[v0{i-1}]" if i == 2 else f"[v{i-2}{i-1}]"
+                tag_out = f"[v{i}]"
+                out_tag = f"[v{i-1}{i}]"
+                offset = display_time * i
+                xfade_chain += f";{tag_in}{tag_out}xfade=transition=fade:duration={transition_duration}:offset={offset}{out_tag}"
+
+            # Final output tag
+            final_output = f"[v{num_images - 2}{num_images - 1}]" if num_images > 1 else "[v0]"
+
+            # Full command
+            ffmpeg_cmd = ["ffmpeg", "-y"] + input_args + [
+                "-filter_complex", ";".join(filter_lines) + ";" + xfade_chain,
+                "-map", final_output,
                 "-c:v", "libx264",
+                "-t", str(audio_duration),
                 "-pix_fmt", "yuv420p",
                 video_path
             ]
-            print("🎬 Running FFmpeg:", " ".join(ffmpeg_cmd))
+
+            print("🎬 FFmpeg visual command:", " ".join(ffmpeg_cmd))
             subprocess.run(ffmpeg_cmd, check=True)
-            print("✅ Video created:", video_path)
-            log_memory("after video creation")
+
         except Exception as e:
             print("❌ FFmpeg failed:", str(e))
             return jsonify({"error": "Video generation failed"}), 500
