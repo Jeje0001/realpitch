@@ -8,3 +8,4 @@ services:
     buildFilter:
       paths:
         - backend/**
+    timeout: 900  
