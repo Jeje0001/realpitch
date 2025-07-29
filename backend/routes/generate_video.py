@@ -1,4 +1,3 @@
-
 import os
 import requests
 import subprocess
@@ -20,6 +19,7 @@ CORS(generate_video_blueprint, origins=[
     "https://realpitch-1.onrender.com",
     "https://realpitch009.vercel.app"
 ])
+
 def log_memory(stage):
     used = psutil.virtual_memory().used / 1024 / 1024
     print(f"🧠 Memory after {stage}: {used:.2f} MB")
@@ -36,7 +36,6 @@ def get_audio_duration(audio_path):
 
 @generate_video_blueprint.route("/generatevideo", methods=["POST"])
 @cross_origin(origins="https://realpitch009.vercel.app")
-
 def generate_video():
     print("🔔 /generatevideo endpoint hit")
 
@@ -73,13 +72,12 @@ def generate_video():
                 response.raise_for_status()
 
                 img = Image.open(BytesIO(response.content))
-                img.verify()  # Validate
-                img = Image.open(BytesIO(response.content))  # Reopen for manipulation
+                img.verify()
+                img = Image.open(BytesIO(response.content))
 
                 if img.width < 10 or img.height < 10:
                     raise ValueError(f"Image too small: {img.width}x{img.height}")
 
-                # Resize for consistency
                 img = img.convert("RGB").resize((1280, 720))
 
                 image_path = os.path.join(temp_dir, f"frame_{len(frame_paths):03}.jpg")
@@ -112,11 +110,11 @@ def generate_video():
             return jsonify({"error": "Invalid audio duration"}), 500
 
         frame_rate = len(frame_paths) / audio_duration
-        print(f"🎞️ Frame rate calculated: {frame_rate:.2f} fps")
+        print(f"🎮 Frame rate calculated: {frame_rate:.2f} fps")
 
         try:
             video_path = os.path.join(temp_dir, "video.mp4")
-            transition_duration = 1  # 1 second crossfade
+            transition_duration = 1
             num_images = len(frame_paths)
             display_time = max((audio_duration - transition_duration * (num_images - 1)) / num_images, 1.0)
 
@@ -126,23 +124,21 @@ def generate_video():
                 input_args.extend(["-loop", "1", "-t", str(display_time + transition_duration), "-i", img_path])
                 zoom_direction = "in" if i % 2 == 0 else "out"
                 z_expr = "zoom+0.001" if zoom_direction == "in" else "zoom-0.001"
+                frame_duration = int(display_time * 25)
                 filter_lines.append(
-                    f"[{i}:v]scale=1280:720,zoompan=z='{z_expr}':d=1:x='iw/2':y='ih/2':s=1280x720:fps=25,format=yuv420p[v{i}]"
+                    f"[{i}:v]scale=1280:720,zoompan=z='{z_expr}':d={frame_duration}:x='iw/2':y='ih/2':s=1280x720:fps=25,format=yuv420p[v{i}]"
                 )
 
-            # Apply crossfades
             xfade_chain = f"[v0][v1]xfade=transition=fade:duration={transition_duration}:offset={display_time}[v01]"
             for i in range(2, num_images):
                 tag_in = f"[v0{i-1}]" if i == 2 else f"[v{i-2}{i-1}]"
                 tag_out = f"[v{i}]"
                 out_tag = f"[v{i-1}{i}]"
-                offset = display_time * i
+                offset = min(display_time * i, audio_duration - transition_duration)
                 xfade_chain += f";{tag_in}{tag_out}xfade=transition=fade:duration={transition_duration}:offset={offset}{out_tag}"
 
-            # Final output tag
             final_output = f"[v{num_images - 2}{num_images - 1}]" if num_images > 1 else "[v0]"
 
-            # Full command
             ffmpeg_cmd = ["ffmpeg", "-y"] + input_args + [
                 "-filter_complex", ";".join(filter_lines) + ";" + xfade_chain,
                 "-map", final_output,
@@ -152,7 +148,7 @@ def generate_video():
                 video_path
             ]
 
-            print("🎬 FFmpeg visual command:", " ".join(ffmpeg_cmd))
+            print("🎮 FFmpeg visual command:", " ".join(ffmpeg_cmd))
             subprocess.run(ffmpeg_cmd, check=True)
 
         except Exception as e:
